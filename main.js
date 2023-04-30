@@ -63,8 +63,8 @@ const rl = readline.createInterface({
 
 function ask(question) {
     rl.question(question, (answer) => {
-        openAIService.promptRequest(answer, initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
-            rl.write(r.data.choices[0].message.content)
+        openAIService.promptRequest(answer", initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
+            rl.write(r.data.choices[0].message.content + "\n")
         }).catch(e => {
             console.log(e)
             process.exit(1)
