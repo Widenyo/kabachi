@@ -55,7 +55,7 @@ openAIService.promptRequest("andate a cagar forra " + char.name, initialMessages
     console.log(e)
 })
 */
-
+/*
 const rl = readline.createInterface({
     input: process.stdin, 
     output: process.stdout,
@@ -72,8 +72,118 @@ function ask(question) {
         })
     })
 }
+*/
+//ask("Prompt: ")
+const { fetchChat, fetchLivePage } = require("youtube-chat/dist/requests")
+const { EventEmitter } = require("events")
 
-ask("Prompt: ")
+/**
+ * YouTubeライブチャット取得イベント
+ */
+ class LiveChat extends EventEmitter {
+  
+ interval = 1000
+ 
+  constructor(id, interval = 1000) {
+    super()
+    if (!id || (!("channelId" in id) && !("liveId" in id) && !("handle" in id))) {
+      throw TypeError("Required channelId or liveId or handle.")
+    } else if ("liveId" in id) {
+      this.liveId = id.liveId
+    }
+
+    this.id = id
+    this.interval = interval
+  }
+
+  async start() {
+    if (this.observer) {
+      return false
+    }
+    try {
+      const options = await fetchLivePage(this.id)
+      this.liveId = options.liveId
+      this.options = options
+
+      this.observer = setInterval(() => this.#execute(), this.interval)
+
+      this.emit("start", this.liveId)
+      return true
+    } catch (err) {
+      this.emit("error", err)
+      return false
+    }
+  }
+
+  stop(reason) {
+    if (this.observer) {
+      clearInterval(this.observer)
+      this.observer = undefined
+      this.emit("end", reason)
+    }
+  }
+
+  async #execute() {
+    if (!this.options) {
+      const message = "Not found options"
+      this.emit("error", new Error(message))
+      this.stop(message)
+      return
+    }
+
+    try {
+      const [chatItems, continuation] = await fetchChat(this.options)
+   
+      //console.log(chatItems)
+  
+      //chatItems.forEach((chatItem) => this.emit("chat", chatItem))
+      const lastChatItem = chatItems.at(-1)
+      if (lastChatItem) this.emit("chat", lastChatItem)
+      this.options.continuation = continuation
+   //   console.log({continuation})
+    } catch (err) {
+      this.emit("error", err)
+    }
+  }
+}
+
+const liveChat = new LiveChat({liveId: "PONER LA ID DE UN LIVE AQUI"}, 7000)
+
+
+const main = async () => {
+
+liveChat.on("start", (liveId) => {
+  console.log({liveId})
+})
+
+
+liveChat.on("end", (reason) => {
+})
+
+
+liveChat.on("chat", (chatItem) => {
+    openAIService.promptRequest(chatItem.message[0].text, initialMessages, {role: 'user', name: chatItem.author.name}).then(r => {
+        }).catch(e => {
+            console.log(e)
+            process.exit(1)
+        })
+    })
+})
+
+liveChat.on("error", (err) => {
+
+  console.log(err)
+})
+
+
+const ok = await liveChat.start()
+if (!ok) {
+  console.log("Failed to start, check emitted error")
+}
+
+}
+
+main()
 
 
 function replaceCharName(str){
