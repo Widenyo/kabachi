@@ -10,7 +10,8 @@
   "dependencies": {
     "axios": "^1.4.0",
     "dotenv": "^16.0.3",
-    "openai": "^3.2.1"
+    "openai": "^3.2.1",
+    "youtube-chat": "^2.2.0"
   },
   "keywords": [],
   "description": ""
