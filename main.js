@@ -1,6 +1,5 @@
 require('dotenv').config()
  // index.js
-const readline = require("readline")
 
 const fs = require('fs')
 
@@ -9,6 +8,8 @@ const API_KEY = process.env.OPENAI_KEY;
 const OpenAIService = require('./microservices/openai')
 
 const charConfigFile = fs.readFileSync('./config/char_config.json')
+const streamConfigFile = fs.readFileSync('./config/stream_config.json')
+const stream_config = JSON.parse(streamConfigFile)
 let char = JSON.parse(charConfigFile)
 
 
@@ -45,46 +46,16 @@ const initialMessages = [{role: 'system', content: wholeInitialPrompt},
     {role: 'system', content: `Remember that ${char.name}'s personality is: ${char.personality}`},
     newChatMsg]
 
-    console.log(initialMessages)
+const allMessages = [...initialMessages]
 
 const openAIService = new OpenAIService(API_KEY)
-/*
-openAIService.promptRequest("andate a cagar forra " + char.name, initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
-    console.log(r.data.choices[0].message.content)
-}).catch(e => {
-    console.log(e)
-})
-*/
-/*
-const rl = readline.createInterface({
-    input: process.stdin, 
-    output: process.stdout,
-})
 
-function ask(question) {
-    rl.question(question, (answer) => {
-        openAIService.promptRequest(answer, initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
-            rl.write(r.data.choices[0].message.content + "\n")
-            ask(question)
-        }).catch(e => {
-            console.log(e)
-            process.exit(1)
-        })
-    })
-}
-*/
-//ask("Prompt: ")
 const { fetchChat, fetchLivePage } = require("youtube-chat/dist/requests")
 const { EventEmitter } = require("events")
 
-/**
- * YouTubeライブチャット取得イベント
- */
  class LiveChat extends EventEmitter {
-  
- interval = 1000
  
-  constructor(id, interval = 1000) {
+  constructor(id, interval) {
     super()
     if (!id || (!("channelId" in id) && !("liveId" in id) && !("handle" in id))) {
       throw TypeError("Required channelId or liveId or handle.")
@@ -94,6 +65,11 @@ const { EventEmitter } = require("events")
 
     this.id = id
     this.interval = interval
+    this.lastMessage = ""
+  }
+
+  resetObserver(){
+    this.observer = setTimeout(() => this.#execute(), this.interval)
   }
 
   async start() {
@@ -105,7 +81,7 @@ const { EventEmitter } = require("events")
       this.liveId = options.liveId
       this.options = options
 
-      this.observer = setInterval(() => this.#execute(), this.interval)
+      this.observer = setTimeout(() => this.#execute(), this.interval)
 
       this.emit("start", this.liveId)
       return true
@@ -139,6 +115,10 @@ const { EventEmitter } = require("events")
       //chatItems.forEach((chatItem) => this.emit("chat", chatItem))
       const lastChatItem = chatItems.at(-1)
       if (lastChatItem) this.emit("chat", lastChatItem)
+      else{
+        console.log("STREAM MUERTO XD")
+        this.resetObserver()
+      }
       this.options.continuation = continuation
    //   console.log({continuation})
     } catch (err) {
@@ -147,8 +127,9 @@ const { EventEmitter } = require("events")
   }
 }
 
-const liveChat = new LiveChat({liveId: "PONER LA ID DE UN LIVE AQUI"}, 7000)
 
+
+const liveChat = new LiveChat({liveId: stream_config.stream_id}, stream_config.time)
 
 const main = async () => {
 
@@ -158,17 +139,26 @@ liveChat.on("start", (liveId) => {
 
 
 liveChat.on("end", (reason) => {
+    console.log(reason)
 })
 
 
-liveChat.on("chat", (chatItem) => {
-    openAIService.promptRequest(chatItem.message[0].text, initialMessages, {role: 'user', name: chatItem.author.name}).then(r => {
-        }).catch(e => {
-            console.log(e)
-            process.exit(1)
-        })
+liveChat.on("chat", async (chatItem) => {
+    const message = `${chatItem.author.name}: ` + chatItem.message[0].text
+    if(!(this.lastMessage === message && message.includes("undefined"))){
+        try{
+            const promptResReq = await openAIService.promptRequest(message, allMessages, {role: "user"})
+            const res = promptResReq.data.choices[0].message.content
+            newMessageAndReply(message, res)
+            console.log(message + '\n', `${char.name}: ${res}`)
+        }catch(e){
+            console.error(e.message)
+        }
+        this.lastMessage = message
+    }
+    liveChat.resetObserver()
     })
-})
+}
 
 liveChat.on("error", (err) => {
 
@@ -176,16 +166,25 @@ liveChat.on("error", (err) => {
 })
 
 
-const ok = await liveChat.start()
-if (!ok) {
-  console.log("Failed to start, check emitted error")
-}
-
-}
+liveChat.start().catch(e => {
+    console.log(e)
+})
 
 main()
 
 
 function replaceCharName(str){
     return str.replaceAll("{name}", char.name)
+}
+
+function newMessageAndReply(message, res){
+    allMessages.push(...[{
+        role: 'user',
+        content: message
+    },
+    {
+        content: res,
+        role: 'assistant',
+    }]
+    )
 }

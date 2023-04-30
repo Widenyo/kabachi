@@ -13,7 +13,7 @@ class openAIService{
         const newMessage = {
             role: options.role || 'user',
             content: prompt,
-            name: options.name || null
+            // name: options.name || null
         }
         const allMessages = [...messages, newMessage]
         console.log(allMessages)
