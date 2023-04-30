@@ -65,15 +65,16 @@ function ask(question) {
     rl.question(question, (answer) => {
         openAIService.promptRequest(answer, initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
             rl.write(r.data.choices[0].message.content + "\n")
+            ask(question)
         }).catch(e => {
             console.log(e)
             process.exit(1)
         })
-        ask(question)
     })
 }
 
 ask("Prompt: ")
+
 
 function replaceCharName(str){
     return str.replaceAll("{name}", char.name)
