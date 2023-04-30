@@ -1,4 +1,6 @@
 require('dotenv').config()
+ // index.js
+const readline = require("readline")
 
 const fs = require('fs')
 
@@ -46,12 +48,32 @@ const initialMessages = [{role: 'system', content: wholeInitialPrompt},
     console.log(initialMessages)
 
 const openAIService = new OpenAIService(API_KEY)
-
+/*
 openAIService.promptRequest("andate a cagar forra " + char.name, initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
     console.log(r.data.choices[0].message.content)
 }).catch(e => {
     console.log(e)
 })
+*/
+
+const rl = readline.createInterface({
+    input: process.stdin, 
+    output: process.stdout,
+})
+
+function ask(question) {
+    rl.question(question, (answer) => {
+        openAIService.promptRequest(answer, initialMessages, {role: 'user', name: "jorge2002"}).then(r => {
+            rl.write(r.data.choices[0].message.content)
+        }).catch(e => {
+            console.log(e)
+            process.exit(1)
+        })
+        ask(question)
+    })
+}
+
+ask("Prompt: ")
 
 function replaceCharName(str){
     return str.replaceAll("{name}", char.name)
