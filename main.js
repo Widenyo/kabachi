@@ -78,6 +78,14 @@ liveChat.on("end", (reason) => {
   console.log(reason)
 })
 
+const ssml = (texto) => `<speak version="1.0" xmlns="https://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="es-ES">
+  <voice name="es-ES-IreneNeural">
+    <prosody contour="" pitch="x-high">
+      ${texto}
+    </prosody>
+  </voice>
+</speak>
+`
 
 liveChat.on("chat", async (chatItem) => {
   const message = `${chatItem.author.name}: ${chatItem.message[0].text}`
@@ -89,7 +97,7 @@ liveChat.on("chat", async (chatItem) => {
       newMessageAndReply(message, res)
       console.log(message + '\n', `${char.name}: ${res}`)
       // Start the synthesizer and wait for a result.
-      synthesizer.speakTextAsync(res,
+      synthesizer.speakSsmlAsync(ssml(res),
         async (result) => {
           if (result.reason === ttsSdk.ResultReason.SynthesizingAudioCompleted) {
             console.log('Sintetizado')
