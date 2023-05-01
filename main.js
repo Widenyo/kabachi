@@ -2,15 +2,25 @@ require('dotenv').config()
  // index.js
 
 const fs = require('fs')
+const charConfigFile = fs.readFileSync('./config/char_config.json')
+const streamConfigFile = fs.readFileSync('./config/stream_config.json')
+const ttsConfigFile = fs.readFileSync('./config/tts_config.json')
+const stream_config = JSON.parse(streamConfigFile)
+const tts_config = JSON.parse(ttsConfigFile)
 
 const API_KEY = process.env.OPENAI_KEY;
 
-const OpenAIService = require('./microservices/openai')
+const player = require('node-wav-player');
 
-const charConfigFile = fs.readFileSync('./config/char_config.json')
-const streamConfigFile = fs.readFileSync('./config/stream_config.json')
-const stream_config = JSON.parse(streamConfigFile)
-let char = JSON.parse(charConfigFile)
+const OpenAIService = require('./microservices/openai');
+const ttsSdk = require('microsoft-cognitiveservices-speech-sdk');
+const speechConfig = ttsSdk.SpeechConfig.fromSubscription(process.env.TTS_KEY, process.env.TTS_REGION);
+speechConfig.speechSynthesisVoiceName = tts_config.voiceName;
+const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(tts_config.outputName);
+let synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
+ 
+
+let char = JSON.parse(charConfigFile, audiocfg)
 
 
 const main_prompt = `From now on, you are going to roleplay as ${char.name}`
@@ -51,7 +61,7 @@ const allMessages = [...initialMessages]
 const openAIService = new OpenAIService(API_KEY)
 
 const { fetchChat, fetchLivePage } = require("youtube-chat/dist/requests")
-const { EventEmitter } = require("events")
+const { EventEmitter } = require("events");
 
  class LiveChat extends EventEmitter {
  
@@ -151,12 +161,35 @@ liveChat.on("chat", async (chatItem) => {
             const res = promptResReq.data.choices[0].message.content
             newMessageAndReply(message, res)
             console.log(message + '\n', `${char.name}: ${res}`)
+                // Start the synthesizer and wait for a result.
+                synthesizer.speakTextAsync(res,
+                    async (result) => {
+                  if (result.reason === ttsSdk.ResultReason.SynthesizingAudioCompleted) {
+                    console.log('Sintetizado')
+                    synthesizer.close();
+                    await player.play({path: tts_config.outputName, sync: true})
+                    console.log('Finished playing audio.')
+                  } else {
+                    console.error("Speech synthesis canceled, " + result.errorDetails +
+                        "\nDid you set the speech resource key and region values?");
+                        synthesizer.close();
+                  }
+                  liveChat.resetObserver()
+                  synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig);
+                },
+                     (err) => {
+                  console.trace("err - " + err);
+                  liveChat.resetObserver()
+                  synthesizer.close();
+                  synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig);
+                });
+                console.log("Now synthesizing");
         }catch(e){
             console.error(e.message)
+            liveChat.resetObserver();
         }
         this.lastMessage = message
     }
-    liveChat.resetObserver()
     })
 }
 
