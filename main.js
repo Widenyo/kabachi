@@ -29,7 +29,7 @@ const ttsSdk = require('microsoft-cognitiveservices-speech-sdk');
 const char = JSON.parse(charConfigFile)
 
 
-const main_prompt = `From now on, you are going to roleplay as ${char.name}`
+const main_prompt = `From now on, you are going to roleplay as ${char.name}.`
 
 const newChatMsg = { role: 'system', content: "[Start a new chat]" }
 
@@ -130,7 +130,7 @@ liveChat.start().catch(e => {
 
 
 function replaceCharName(str){
-  str.replaceAll("{name}", char.name)
+  return str.replaceAll("{name}", char.name)
 }
 
 function ssml(texto) {
