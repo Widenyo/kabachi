@@ -11,25 +11,22 @@ const stream_config = JSON.parse(streamConfigFile)
 const tts_config = JSON.parse(ttsConfigFile)
 
 const API_KEY = process.env.OPENAI_KEY;
-const openAIService = new OpenAIService(API_KEY)
-
-const liveChat = new LiveChat({ liveId: stream_config.stream_id }, stream_config.time)
 
 
 //microservices
 const OpenAIService = require('./microservices/openai');
 const LiveChat = require("./microservices/livechat")
 
+const openAIService = new OpenAIService(API_KEY)
+
+const liveChat = new LiveChat({ liveId: stream_config.stream_id }, stream_config.time)
+
 //tts
 const player = require('node-wav-player');
 const ttsSdk = require('microsoft-cognitiveservices-speech-sdk');
-const speechConfig = ttsSdk.SpeechConfig.fromSubscription(process.env.TTS_KEY, process.env.TTS_REGION);
-speechConfig.speechSynthesisVoiceName = tts_config.voiceName;
-const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(tts_config.outputName);
-const synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
 
 
-const char = JSON.parse(charConfigFile, audiocfg)
+const char = JSON.parse(charConfigFile)
 
 
 const main_prompt = `From now on, you are going to roleplay as ${char.name}`
@@ -78,15 +75,6 @@ liveChat.on("end", (reason) => {
   console.log(reason)
 })
 
-const ssml = (texto) => `<speak version="1.0" xmlns="https://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="es-ES">
-  <voice name="es-ES-IreneNeural">
-    <prosody contour="" pitch="x-high">
-      ${texto}
-    </prosody>
-  </voice>
-</speak>
-`
-
 liveChat.on("chat", async (chatItem) => {
   const message = `${chatItem.author.name}: ${chatItem.message[0].text}`
 
@@ -97,6 +85,10 @@ liveChat.on("chat", async (chatItem) => {
       newMessageAndReply(message, res)
       console.log(message + '\n', `${char.name}: ${res}`)
       // Start the synthesizer and wait for a result.
+      const speechConfig = ttsSdk.SpeechConfig.fromSubscription(process.env.TTS_KEY, process.env.TTS_REGION);
+      const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(tts_config.outputName);
+      const synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
+      console.log(ssml(res))
       synthesizer.speakSsmlAsync(ssml(res),
         async (result) => {
           if (result.reason === ttsSdk.ResultReason.SynthesizingAudioCompleted) {
@@ -110,13 +102,11 @@ liveChat.on("chat", async (chatItem) => {
             synthesizer.close();
           }
           liveChat.resetObserver()
-          synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig);
         },
         (err) => {
           console.trace("err - " + err);
           liveChat.resetObserver()
           synthesizer.close();
-          synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig);
         });
       console.log("Now synthesizing");
     } catch (e) {
@@ -139,7 +129,21 @@ liveChat.start().catch(e => {
 })
 
 
-const replaceCharName = (str) => str.replaceAll("{name}", char.name)
+function replaceCharName(str){
+  str.replaceAll("{name}", char.name)
+}
+
+function ssml(texto) {
+  const {voiceName, rate, contour, pitch, volume} = tts_config
+  return `<speak version="1.0" xmlns="https://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="es-ES">
+  <voice name="${voiceName || "es-ES-IreneNeural"}">
+    <prosody volume="${volume || "default"}" rate="${rate || "default"}" contour="${contour || ""}" pitch="${pitch || "default"}">
+      ${texto}
+    </prosody>
+  </voice>
+</speak>
+`
+}
 
 const newMessageAndReply = (message, res) => {
   allMessages.push(...[{

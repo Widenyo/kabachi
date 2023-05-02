@@ -1,4 +1,8 @@
 {
     "outputName": "speech.wav",
-    "voiceName": "ja-JP-AoiNeural"
+    "voiceName": "es-ES-IreneNeural",
+    "pitch": "high",
+    "range": "",
+    "contour": "",
+    "volume": ""
 }
