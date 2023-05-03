@@ -13,7 +13,7 @@ Tambien necesitarás una **API KEY** de openai además de una **TTS KEY** de azu
 1. Clona este repositorio a tu ordenador:
 
    ```
-   git clone https://github.com/tu-usuario/kabachi.git
+   git clone https://github.com/Widenyo/kabachi.git
    ```
 
 2. Entra al directorio del proyecto:
