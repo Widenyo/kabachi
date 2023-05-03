@@ -16,7 +16,7 @@ const stream_config = JSON.parse(streamConfigFile);
 const tts_config = JSON.parse(ttsConfigFile);
 
 const API_KEY = process.env.OPENAI_KEY;
-const openAIService = new OpenAIService(API_KEY);
+const openAIService = new OpenAIService({API_KEY});
 
 const liveChat = new LiveChat(
   { liveId: stream_config.stream_id },
@@ -26,16 +26,23 @@ const liveChat = new LiveChat(
 //tts
 const player = require("node-wav-player");
 const ttsSdk = require("microsoft-cognitiveservices-speech-sdk");
-const speechConfig = ttsSdk.SpeechConfig.fromSubscription(
-  process.env.TTS_KEY,
-  process.env.TTS_REGION
+const { getCharConfig, getTTSConfig } = require("./utils");
+
+const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(
+  getTTSConfig().outputName
 );
-speechConfig.speechSynthesisVoiceName = tts_config.voiceName;
-const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(tts_config.outputName);
-const synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
 
+const kobachi = new Character({charConfig: charConfigFile, audiocfg,tts_config});
 
-const kobachi = new Character({charConfig: charConfigFile, audiocfg, tts_config});
+fs.watchFile('./config/char_config.json', {interval: 2000}, () => {
+  console.log("CAMBIO: char_config")
+  kobachi.char = JSON.parse(getCharConfig())
+})
+
+fs.watchFile('./config/tts_config.json', {interval: 2000}, () => {
+  console.log("CAMBIO: tts_config")
+  kobachi.tts_config = getTTSConfig()
+})
 
 console.log(kobachi.allMessages);
 liveChat.on("start", (liveId) => {
@@ -62,11 +69,12 @@ liveChat.on("chat", async (chatItem) => {
       console.log(message + "\n", `${kobachi.char.name}: ${res}`);
       // Start the synthesizer and wait for a result.
       const speechConfig = ttsSdk.SpeechConfig.fromSubscription(
+        
         process.env.TTS_KEY,
         process.env.TTS_REGION
       );
       const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(
-        tts_config.outputName
+        getTTSConfig().outputName
       );
       const synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
       console.log(kobachi.ssml(res));
@@ -78,7 +86,7 @@ liveChat.on("chat", async (chatItem) => {
           ) {
             console.log("Sintetizado");
             synthesizer.close();
-            await player.play({ path: tts_config.outputName, sync: true });
+            await player.play({ path: getTTSConfig().outputName, sync: true });
             console.log("Finished playing audio.");
           } else {
             console.error(
@@ -113,3 +121,4 @@ liveChat.on("error", (err) => {
 liveChat.start().catch((e) => {
   console.log(e);
 });
+
