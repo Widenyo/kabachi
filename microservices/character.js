@@ -1,3 +1,5 @@
+const fs = require('fs')
+
 class Character {
     newChatMsg = { role: "system", content: "[Start a new chat]" };
   
@@ -47,12 +49,13 @@ class Character {
     ];
   
     newMessageAndReply(message, res) {
+      const initialMessagesLength = this.createInitialMesages(this.char).length
       if (
         this.allMessages.length >
-        this.createInitialMesages(this.char).length + this.char.lengthLimit
+        initialMessagesLength + this.char.lengthLimit
       ) {
         console.log("LLEGAMOS AL LÍMIE XD BORRANDO MENSAJES VIEJOS");
-        this.allMessages = this.allMessages.slice(2);
+        this.allMessages = this.allMessages.slice(0, initialMessagesLength).concat(this.allMessages.slice(initialMessagesLength + 2));
       }
   
       this.allMessages.push(
@@ -84,4 +87,4 @@ class Character {
     }
   }
 
-module.exports = Character  
+module.exports = Character
