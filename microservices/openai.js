@@ -1,7 +1,8 @@
 const { Configuration, OpenAIApi } = require('openai')
 
 class openAIService{
-    constructor(API_KEY){
+    constructor({API_KEY, max_tokens}){
+        this.max_tokens = max_tokens
         this.API_KEY = API_KEY
         this.config = new Configuration({
             apiKey: this.API_KEY
@@ -21,7 +22,7 @@ class openAIService{
                 messages: allMessages,
                 temperature: options.temperature || 0.70777,
                 model: "gpt-3.5-turbo",
-                max_tokens: 2000
+                ...(this.max_tokens ? {max_tokens: this.max_tokens} : {})
             });
             return response
     }
