@@ -2,49 +2,43 @@ require("dotenv").config();
 // index.js
 
 const fs = require("fs");
-
+const chalk = require("chalk")
 //microservices
-const OpenAIService = require("./microservices/openai");
+
 const LiveChat = require("./microservices/livechat");
 const Character = require("./microservices/character");
 
 //config
 const charConfigFile = fs.readFileSync("./config/char_config.json");
 const streamConfigFile = fs.readFileSync("./config/stream_config.json");
-const ttsConfigFile = fs.readFileSync("./config/tts_config.json");
 const stream_config = JSON.parse(streamConfigFile);
-const tts_config = JSON.parse(ttsConfigFile);
-
-const API_KEY = process.env.OPENAI_KEY;
-const openAIService = new OpenAIService({API_KEY});
 
 const liveChat = new LiveChat(
   { liveId: stream_config.stream_id },
   stream_config.time
 );
 
-//tts
-const player = require("node-wav-player");
-const ttsSdk = require("microsoft-cognitiveservices-speech-sdk");
-const { getCharConfig, getTTSConfig } = require("./utils");
+const { parseJSONFile } = require("./utils");
 
-const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(
-  getTTSConfig().outputName
-);
-
-const kobachi = new Character({charConfig: charConfigFile, audiocfg,tts_config});
+const kobachi = new Character({
+  charConfig: charConfigFile, 
+  speechConfig: {
+    TTS_KEY: process.env.TTS_KEY,
+    TTS_REGION: process.env.TTS_REGION,
+    TTSConfigPath: "./config/tts_config.json"
+  },
+  openAIConfig: {
+    API_KEY: process.env.OPENAI_KEY
+  }
+});
 
 fs.watchFile('./config/char_config.json', {interval: 2000}, () => {
-  console.log("CAMBIO: char_config")
-  kobachi.char = JSON.parse(getCharConfig())
-})
-
-fs.watchFile('./config/tts_config.json', {interval: 2000}, () => {
-  console.log("CAMBIO: tts_config")
-  kobachi.tts_config = getTTSConfig()
+  console.log(chalk.bgBlueBright("CAMBIO: char_config"))
+  kobachi.char = parseJSONFile("./config/char_config.json")
 })
 
 console.log(kobachi.allMessages);
+
 liveChat.on("start", (liveId) => {
   console.log({ liveId });
 });
@@ -59,52 +53,18 @@ liveChat.on("chat", async (chatItem) => {
 
   if (!(this.lastMessage === message && message.includes("undefined"))) {
     try {
-      const promptResReq = await openAIService.promptRequest(
-        message,
-        kobachi.allMessages,
-        { role: "user" }
-      );
-      const res = promptResReq.data.choices[0].message.content;
-      kobachi.newMessageAndReply(message, res);
-      console.log(message + "\n", `${kobachi.char.name}: ${res}`);
+   
+      const res = await kobachi.respond(message)
+
+      const [messageAuthor, messageContent] = message.split(': ')
+      
+      console.log("\n")
+      console.log(chalk.black.bgGreenBright(messageAuthor) + chalk.green(` ${messageContent}`))
+      console.log(chalk.black.bgCyanBright(`${kobachi.char.name}:`) + chalk.cyan(` ${res}`))
+      console.log("\n")
+
       // Start the synthesizer and wait for a result.
-      const speechConfig = ttsSdk.SpeechConfig.fromSubscription(
-        
-        process.env.TTS_KEY,
-        process.env.TTS_REGION
-      );
-      const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(
-        getTTSConfig().outputName
-      );
-      const synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
-      console.log(kobachi.ssml(res));
-      synthesizer.speakSsmlAsync(
-        kobachi.ssml(res),
-        async (result) => {
-          if (
-            result.reason === ttsSdk.ResultReason.SynthesizingAudioCompleted
-          ) {
-            console.log("Sintetizado");
-            synthesizer.close();
-            await player.play({ path: getTTSConfig().outputName, sync: true });
-            console.log("Finished playing audio.");
-          } else {
-            console.error(
-              "Speech synthesis canceled, " +
-                result.errorDetails +
-                "\nDid you set the speech resource key and region values?"
-            );
-            synthesizer.close();
-          }
-          liveChat.resetObserver();
-        },
-        (err) => {
-          console.trace("err - " + err);
-          liveChat.resetObserver();
-          synthesizer.close();
-        }
-      );
-      console.log("Now synthesizing");
+      kobachi.speech(res).finally(() => liveChat.resetObserver())
     } catch (e) {
       console.error(e.message);
       liveChat.resetObserver();
@@ -122,3 +82,8 @@ liveChat.start().catch((e) => {
   console.log(e);
 });
 
+
+process.on("SIGINT", () => {
+  fs.writeFileSync("log.json", JSON.stringify(kobachi.allMessages))
+  process.exit(0)
+})
