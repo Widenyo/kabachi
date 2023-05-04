@@ -1,90 +1,36 @@
-const fs = require('fs')
+const BaseCharacter = require('./base-character')
+const OpenAIService = require('./openai')
+const SpeechService = require('./speech')
 
-class Character {
-    newChatMsg = { role: "system", content: "[Start a new chat]" };
-  
-    constructor({charConfig, audiocfg, tts_config}) {
-      this.char = JSON.parse(charConfig, audiocfg);
-      this.allMessages = [...this.createInitialMesages(this.char)];
-      this.tts_config = tts_config
+class Character extends BaseCharacter {
+
+
+    constructor({charConfig, speechConfig, openAIConfig}) {
+        super({charConfig})
+        this.speechConfig = speechConfig
+        this.openAIConfig = openAIConfig
+        this.openAIService = new OpenAIService(openAIConfig)
+        this.speechService = new SpeechService(speechConfig)
     }
-  
-    mainPrompt() {
-      return `From now on, you are going to roleplay as ${this.char.name}`;
-    }
-  
-    mapExampleMessages() {
-      return this.char.dialogue_examples
-        .map((exampleConv) => {
-          const mappedConv = exampleConv.map((m) => ({
-            role: m.includes("{name}") ? "assistant" : "user",
-            content: m.split(": ")[1],
-            //El name está comentado porque cuando incluyo los nombres de los users de ejemplo me tira error la req.
-            //Creo que el campo de name es un peligro porque si alguien tiene un espacio en el nombre o un caracter especial tira bad req.
-            // name: m.includes('{name}') ? 'Kabachi' : m.split(':')[0]
-          }));
-          const newConv = [...mappedConv, this.newChatMsg];
-          return newConv;
-        })
-        .flat(2);
-    }
-  
-    replaceCharName = () => this.char.description.replaceAll("{name}", this.char.name);
-  
-    createWholeInitialPrompt = (char) => `
-      ${this.mainPrompt(char)}\n
-      ${this.replaceCharName(char)}\n
-      Circumstances and context of the dialogue: ${char.scenario}
-    `;
-  
-  
-    createInitialMesages = () => [
-      { role: "system", content: this.createWholeInitialPrompt(this.char) },
-      ...this.mapExampleMessages(this.char),
-      {
-        role: "system",
-        content: `Remember that ${this.char.name}'s personality is: ${this.char.personality}`,
-      },
-      this.newChatMsg,
-    ];
-  
-    newMessageAndReply(message, res) {
-      const initialMessagesLength = this.createInitialMesages(this.char).length
-      if (
-        this.allMessages.length >
-        initialMessagesLength + this.char.lengthLimit
-      ) {
-        console.log("LLEGAMOS AL LÍMIE XD BORRANDO MENSAJES VIEJOS");
-        this.allMessages = this.allMessages.slice(0, initialMessagesLength).concat(this.allMessages.slice(initialMessagesLength + 2));
+
+      speech(texto) {
+        return this.speechService.speech(texto)
       }
   
-      this.allMessages.push(
-        ...[
-          {
-            role: "user",
-            content: message,
-          },
-          {
-            content: res,
-            role: "assistant",
-          },
-        ]
-      );
-    }
+      async respond(message) {
   
-    ssml(texto) {
-      const { voiceName, rate, contour, pitch, volume } = this.tts_config;
-      return `<speak version="1.0" xmlns="https://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="es-ES">
-      <voice name="${voiceName || "es-ES-IreneNeural"}">
-        <prosody volume="${volume || "default"}" rate="${
-        rate || "default"
-      }" contour="${contour || ""}" pitch="${pitch || "default"}">
-          ${texto}
-        </prosody>
-      </voice>
-    </speak>
-    `;
-    }
-  }
+        const promptResReq = await this.openAIService.promptRequest(
+          message,
+          this.allMessages,
+          { role: "user" }
+        );
+        const res = promptResReq.data.choices[0].message.content;
+        this.newMessageAndReply(message, res)
+        return res
+      }
+  
+  
+
+}
 
 module.exports = Character
