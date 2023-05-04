@@ -1,6 +1,6 @@
 const { Configuration, OpenAIApi } = require('openai')
 
-class openAIService{
+class OpenAIService{
     constructor({API_KEY, max_tokens}){
         this.max_tokens = max_tokens
         this.API_KEY = API_KEY
@@ -29,4 +29,4 @@ class openAIService{
 
 }
 
-module.exports = openAIService
+module.exports = OpenAIService
