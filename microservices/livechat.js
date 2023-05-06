@@ -2,9 +2,13 @@
 const { fetchChat, fetchLivePage } = require("youtube-chat/dist/requests")
 const { EventEmitter } = require("events");
 
+const fs = require('fs')
+
+let config = JSON.parse(fs.readFileSync('config/stream_config.json'));
+
  class LiveChat extends EventEmitter {
  
-  constructor(id, interval) {
+  constructor(id) {
     super()
     if (!id || (!("channelId" in id) && !("liveId" in id) && !("handle" in id))) {
       throw TypeError("Required channelId or liveId or handle.")
@@ -13,12 +17,18 @@ const { EventEmitter } = require("events");
     }
 
     this.id = id
-    this.interval = interval
     this.lastMessage = ""
   }
 
+  getRandomInterval(){
+    const random = (Math.random() * (config.max - config.min) + config.min) * 1000
+    console.log(random)
+    return random
+  }
+
   resetObserver(){
-    this.observer = setTimeout(() => this.#execute(), this.interval)
+    config = JSON.parse(fs.readFileSync('config/stream_config.json'));
+    this.observer = setTimeout(() => this.#execute(), this.getRandomInterval())
   }
 
   async start() {
@@ -30,7 +40,7 @@ const { EventEmitter } = require("events");
       this.liveId = options.liveId
       this.options = options
 
-      this.observer = setTimeout(() => this.#execute(), this.interval)
+      this.observer = setTimeout(() => this.#execute(), this.getRandomInterval())
 
       this.emit("start", this.liveId)
       return true

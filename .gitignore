@@ -3,3 +3,4 @@ node_modules
 config/stream_config.json
 config/tts_config.json
 *.wav
+log.json

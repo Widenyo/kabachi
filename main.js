@@ -14,8 +14,7 @@ const streamConfigFile = fs.readFileSync("./config/stream_config.json");
 const stream_config = JSON.parse(streamConfigFile);
 
 const liveChat = new LiveChat(
-  { liveId: stream_config.stream_id },
-  stream_config.time
+  { liveId: stream_config.stream_id }
 );
 
 const { parseJSONFile } = require("./utils");
