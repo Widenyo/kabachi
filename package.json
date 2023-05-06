@@ -9,9 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@azure/ai-language-text": "^1.0.0",
     "axios": "^1.4.0",
-    "dotenv": "^16.0.3",
     "chalk": "^4.1.0",
+    "dotenv": "^16.0.3",
     "microsoft-cognitiveservices-speech-sdk": "^1.28.0",
     "node-wav-player": "^0.2.0",
     "openai": "^3.2.1",

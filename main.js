@@ -13,6 +13,16 @@ const charConfigFile = fs.readFileSync("./config/char_config.json");
 const streamConfigFile = fs.readFileSync("./config/stream_config.json");
 const stream_config = JSON.parse(streamConfigFile);
 
+
+//
+
+const { TextAnalysisClient, AzureKeyCredential } = require("@azure/ai-language-text");
+
+const OM_KEY = process.env.OM_KEY;
+const OM_ENDPOINT = process.env.OM_ENDPOINT;
+
+
+
 const liveChat = new LiveChat(
   { liveId: stream_config.stream_id }
 );
@@ -61,6 +71,19 @@ liveChat.on("chat", async (chatItem) => {
       console.log(chalk.black.bgGreenBright(messageAuthor) + chalk.green(` ${messageContent}`))
       console.log(chalk.black.bgCyanBright(`${kobachi.char.name}:`) + chalk.cyan(` ${res}`))
       console.log("\n")
+
+      const client = new TextAnalysisClient(OM_ENDPOINT, new AzureKeyCredential(OM_KEY));
+
+      const results = await client.analyze("SentimentAnalysis", [{
+        text: res,
+        language: 'es',
+        id: "0"
+      }], {
+        includeOpinionMining: true,
+      });
+
+      console.log(results)
+
 
       // Start the synthesizer and wait for a result.
       kobachi.speech(res).finally(() => liveChat.resetObserver())
