@@ -1,6 +1,5 @@
 .env
 node_modules
-config/stream_config.json
-config/tts_config.json
+config
 *.wav
 log.json
