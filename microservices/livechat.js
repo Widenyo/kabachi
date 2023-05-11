@@ -1,47 +1,58 @@
 
+
 const { fetchChat, fetchLivePage } = require("youtube-chat/dist/requests")
 const { EventEmitter } = require("events");
 
-const fs = require('fs')
-
-let config = JSON.parse(fs.readFileSync('config/stream_config.json'));
-
  class LiveChat extends EventEmitter {
  
-  constructor(id) {
+  constructor(config) {
     super()
-    if (!id || (!("channelId" in id) && !("liveId" in id) && !("handle" in id))) {
+    if (!config || (!("channelId" in config) && !("liveId" in config) && !("handle" in config))) {
       throw TypeError("Required channelId or liveId or handle.")
-    } else if ("liveId" in id) {
-      this.liveId = id.liveId
+    } else if ("liveId" in config) {
+      this.liveId = config.liveId
     }
 
-    this.id = id
+    this.config = config
+    this.min = config.min
+    this.max = config.max
     this.lastMessage = ""
   }
 
-  getRandomInterval(){
-    const random = (Math.random() * (config.max - config.min) + config.min) * 1000
+  getRandomInterval() {
+    const random = Math.round(Math.random() * (this.max - this.min) + this.min) * 1000
     console.log(random)
+    this.interval = random;
+    this.emit("new-interval", random / 1000)
     return random
   }
 
-  resetObserver(){
-    config = JSON.parse(fs.readFileSync('config/stream_config.json'));
-    this.observer = setTimeout(() => this.#execute(), this.getRandomInterval())
+  resetShortenedChatObserver() {
+    console.log("alo xD")
+    this.shortenedChatObserver = setTimeout(() => this.#executeShortenedChat(), this.getRandomInterval())
   }
 
-  async start() {
-    if (this.observer) {
+  resetFullChatObserver(){
+    this.fullChatObserver = setTimeout(() => this.#executeFullChat(), 1000)
+  }
+
+  async start({withObservers}) {
+    if (this.shortenedChatObserver) {
       return false
     }
     try {
-      const options = await fetchLivePage(this.id)
+      const options = await fetchLivePage(this.config)
       this.liveId = options.liveId
       this.options = options
 
-      this.observer = setTimeout(() => this.#execute(), this.getRandomInterval())
-
+      const [_, continuation] = await fetchChat(this.options)
+      this.options.shortenedChatContinuation = continuation
+      this.options.fullChatContinuation = continuation
+      if (withObservers) {
+        console.log("ESTO NO PASA")
+        this.shortenedChatObserver = setTimeout(() => this.#executeShortenedChat(), this.getRandomInterval())
+      }
+      this.fullChatObserver = setInterval(() => this.#executeFullChat(), 1000)
       this.emit("start", this.liveId)
       return true
     } catch (err) {
@@ -50,15 +61,16 @@ let config = JSON.parse(fs.readFileSync('config/stream_config.json'));
     }
   }
 
-  stop(reason) {
-    if (this.observer) {
-      clearInterval(this.observer)
-      this.observer = undefined
+  stopShortenedChatObserver(reason) {
+    if (this.shortenedChatObserver) {
+      console.log(reason)
+      clearTimeout(this.shortenedChatObserver)
+      this.shortenedChatObserver = undefined
       this.emit("end", reason)
     }
   }
 
-  async #execute() {
+  async #executeFullChat() {
     if (!this.options) {
       const message = "Not found options"
       this.emit("error", new Error(message))
@@ -67,18 +79,60 @@ let config = JSON.parse(fs.readFileSync('config/stream_config.json'));
     }
 
     try {
-      const [chatItems, continuation] = await fetchChat(this.options)
+
+      const [chatItems, continuation] = await fetchChat({
+        ...this.options, continuation: this.options.fullChatContinuation, 
+      })
    
       //console.log(chatItems)
   
-      //chatItems.forEach((chatItem) => this.emit("chat", chatItem))
+      chatItems.forEach((chatItem) => this.emit("chat", chatItem))
+ 
+      this.options.fullChatContinuation = continuation
+   //   console.log({continuation})
+    } catch (err) {
+      this.emit("error", err)
+    }
+  }
+
+  async #executeShortenedChat() {
+    if (!this.options) {
+      const message = "Not found options"
+      this.emit("error", new Error(message))
+      this.stop(message)
+      return
+    }
+
+
+    try {
+      
+      /* 
+        Por alguna razón, al pasar bastante tiempo desde que el chat automatico está desactivado, 
+        al volver a iniciar este vuelve [continuation] en undefined, creo yo que es porque
+        la continuación que habia en this.options ya expiró al haber pasado tantos mensajes o algo así,
+        el caso es que por ahoralo único que se me ocurre es volver a hacer un fetch como la
+        funcion start(), aunque esto no pasará muchas veces así que no hay de que preocuparse añaññañañ
+      */
+      let [chatItems, continuation] = await fetchChat({
+        ...this.options, continuation: this.options.shortenedChatContinuation, 
+      })
+
+      if (!continuation) {
+        const options = await fetchLivePage(this.config)
+        const newChatData = await fetchChat(options) 
+        chatItems = newChatData[0]
+        continuation = newChatData[1]
+      }
+
+      console.log("HOLA")
+      //console.log(chatItems)
       const lastChatItem = chatItems.at(-1)
-      if (lastChatItem) this.emit("chat", lastChatItem)
+      if (lastChatItem) this.emit("shortened-chat", lastChatItem)
       else{
         console.log("STREAM MUERTO XD")
-        this.resetObserver()
+        this.resetShortenedChatObserver()
       }
-      this.options.continuation = continuation
+      this.options.shortenedChatContinuation = continuation
    //   console.log({continuation})
     } catch (err) {
       this.emit("error", err)
