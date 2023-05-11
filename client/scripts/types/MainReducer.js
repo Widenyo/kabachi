@@ -1,0 +1,8 @@
+const MainTypes = {
+    TOGGLE_AI_BUSY: "TOGGLE_AI_BUSY",
+    SET_CHAT_ITEMS: "SET_CHAT_ITEMS",
+    ADD_CHAT_ITEM: "ADD_CHAT_ITEM",
+    SET_SELECTED_CHAT_ITEM: "SET_SELECTED_CHAT_ITEM"
+}
+
+export default MainTypes
