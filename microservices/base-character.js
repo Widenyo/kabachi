@@ -51,7 +51,7 @@ class BaseCharacter {
         this.allMessages.length >
         initialMessagesLength + this.char.lengthLimit
       ) {
-        console.log("LLEGAMOS AL LÍMIE XD BORRANDO MENSAJES VIEJOS");
+        console.log("LLEGAMOS AL LÍMITE");
         this.allMessages = this.allMessages.slice(0, initialMessagesLength).concat(this.allMessages.slice(initialMessagesLength + 2));
       }
   
