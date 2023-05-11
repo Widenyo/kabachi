@@ -1,4 +1,3 @@
-//@ts-check
 const { parseJSONFile } = require("../utils");
 const player = require("node-wav-player");
 const ttsSdk = require("microsoft-cognitiveservices-speech-sdk");
