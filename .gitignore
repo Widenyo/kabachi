@@ -3,3 +3,4 @@ node_modules
 config
 *.wav
 log.json
+config_sample
