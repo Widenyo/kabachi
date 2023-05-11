@@ -4,3 +4,6 @@ config
 *.wav
 log.json
 sample_config
+sample_config/char_config.json
+sample_config/stream_config.json
+sample_config/tts_config.json
