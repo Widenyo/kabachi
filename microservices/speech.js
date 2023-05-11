@@ -3,6 +3,7 @@ const { parseJSONFile } = require("../utils");
 const player = require("node-wav-player");
 const ttsSdk = require("microsoft-cognitiveservices-speech-sdk");
 const fs = require('fs')
+
 /**
  * el string debe ser un ssml
  * @param {string} ssml
@@ -45,7 +46,8 @@ class SpeechService {
     const audiocfg = ttsSdk.AudioConfig.fromAudioFileOutput(
       parseJSONFile(this.TTSConfigPath).outputName
     );
-
+      // const a = new ttsSdk.SpeechRecognizer(speechConfig, audiocfg)
+      // a.recognizeOnceAsync()
     const synthesizer = new ttsSdk.SpeechSynthesizer(speechConfig, audiocfg);
     return new Promise((resolve, eject) => {
       synthesizer.speakSsmlAsync(
