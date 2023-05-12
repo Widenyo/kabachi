@@ -25,6 +25,7 @@ const http = require("http");
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
+const vtubestudio = require('./microservices/vtube-studio')
 
 app.use(express.static(path.join(__dirname, "./client")));
 app.use(express.json())
@@ -96,11 +97,6 @@ const respondAndSpeech = async (chatItem, { resetObserver }) => {
 
       const res = await kobachi.respond(message);
 
-      logger.message(`SELECTED -> ${chatItem.author.name}`, chatItem.message[0].text, "green");
-      logger.message(kobachi.char.name, res, "cyan");
-      logger.logJson("Mensajes", kobachi.allMessages);
-      // Start the synthesizer and wait for a result.
-      io.emit("speeching");
       const client = new TextAnalysisClient(OM_ENDPOINT, new AzureKeyCredential(OM_KEY));
 
       const results = await client.analyze("SentimentAnalysis", [{
@@ -111,7 +107,52 @@ const respondAndSpeech = async (chatItem, { resetObserver }) => {
         includeOpinionMining: true,
       });
 
-      console.log(results)
+      const rawSentiment = results[0].sentiment
+      let emotion = ""
+
+      switch(rawSentiment){
+        case "positive":
+          emotion = "happy"
+          break
+        case "negative":
+          emotion = "sad"
+          break
+        default:
+          emotion = ""
+          break
+      }
+
+      console.log("Current emotion:", emotion)
+
+      if(vtubestudio.isConnected){
+        try{
+        if(emotion.length && emotion.length > 0){
+          await vtubestudio.expressionActivation({
+            expressionFile: `${emotion}.exp3.json`,
+            active: true
+          })
+        }else{
+          await vtubestudio.expressionActivation({
+            expressionFile: `happy.exp3.json`,
+            active: false
+          })
+          await vtubestudio.expressionActivation({
+            expressionFile: `sad.exp3.json`,
+            active: false
+          })
+        }
+       }catch(e){
+        console.error(e)
+       }
+      }
+
+
+      logger.message(`SELECTED -> ${chatItem.author.name}`, chatItem.message[0].text, "green");
+      logger.message(kobachi.char.name, res, "cyan");
+      logger.logJson("Mensajes", kobachi.allMessages);
+      // Start the synthesizer and wait for a result.
+      io.emit("speeching");
+
 
       kobachi.speech(res).finally(() => {
         if (resetObserver) liveChat.resetShortenedChatObserver();
