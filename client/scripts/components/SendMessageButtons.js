@@ -35,31 +35,9 @@ const SendMessageButtons = () => {
     return env.data;
   };
 
-  const recognitionSetup = async () => {
-    const { TTS_KEY, TTS_REGION } = await getEnv();
-    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
-      TTS_KEY,
-      TTS_REGION
-    );
-
-    speechConfig.speechRecognitionLanguage = "es-MX";
-    const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-
-    recognizer.current = new SpeechSDK.SpeechRecognizer(
-      speechConfig,
-      audioConfig
-    );
-  }
-
-  useEffect(() => {
-    recognitionSetup()
-  }, []);
-
-  useEffect(() => {
-    if (recognizer.current === null) {
-      return console.log("SERVICIO TODAVIA NO INICIADO")
-    }
-    recognizer.current.recognized = (s, e) => {
+  
+  const actualizarReconocimiento = () => {
+      recognizer.current.recognized = (s, e) => {
       console.log(`Texto reconocido: ${e.result.text}`);
       console.log(e);
       console.log(e.reason);
@@ -88,6 +66,36 @@ const SendMessageButtons = () => {
         console.log("NO DIJISTE NADA!!!");
       }
     };
+  }
+  
+  
+  const recognitionSetup = async () => {
+    const { TTS_KEY, TTS_REGION } = await getEnv();
+    const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(
+      TTS_KEY,
+      TTS_REGION
+    );
+
+    speechConfig.speechRecognitionLanguage = "es-MX";
+    const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+
+    recognizer.current = new SpeechSDK.SpeechRecognizer(
+      speechConfig,
+      audioConfig
+    );
+    
+    actualizarReconocimiento()
+  }
+
+  useEffect(() => {
+    recognitionSetup()
+  }, []);
+
+  useEffect(() => {
+    if (recognizer.current === null) {
+      return console.log("SERVICIO TODAVIA NO INICIADO")
+    }
+    actualizarReconocimiento()
   }, [state.isAiBusy]);
   return html`
     <div class="send-message__buttons">
